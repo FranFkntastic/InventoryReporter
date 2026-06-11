@@ -1,0 +1,11 @@
+{
+  "version": 2,
+  "dgSpecHash": "zrLgZkwXbs4=",
+  "success": true,
+  "projectFilePath": "F:\\C#\\InventoryReporter2\\InventoryReporter2\\InventoryReporter2.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\MaiMai\\.nuget\\packages\\dalamudpackager\\15.0.0\\dalamudpackager.15.0.0.nupkg.sha512",
+    "C:\\Users\\MaiMai\\.nuget\\packages\\dotnet.reproduciblebuilds\\1.2.39\\dotnet.reproduciblebuilds.1.2.39.nupkg.sha512"
+  ],
+  "logs": []
+}

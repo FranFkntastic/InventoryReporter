@@ -1,0 +1,8 @@
+F:\C#\InventoryReporter2\InventoryReporter2\obj\Debug\InventoryReporter2.csproj.AssemblyReference.cache
+F:\C#\InventoryReporter2\InventoryReporter2\obj\Debug\InventoryReporter2.GeneratedMSBuildEditorConfig.editorconfig
+F:\C#\InventoryReporter2\InventoryReporter2\obj\Debug\InventoryReporter2.AssemblyInfoInputs.cache
+F:\C#\InventoryReporter2\InventoryReporter2\obj\Debug\InventoryReporter2.AssemblyInfo.cs
+F:\C#\InventoryReporter2\InventoryReporter2\obj\Debug\InventoryReporter2.csproj.CoreCompileInputs.cache
+F:\C#\InventoryReporter2\InventoryReporter2\bin\Debug\InventoryReporter2.deps.json
+F:\C#\InventoryReporter2\InventoryReporter2\bin\Debug\InventoryReporter2.dll
+F:\C#\InventoryReporter2\InventoryReporter2\obj\Debug\InventoryReporter2.dll
