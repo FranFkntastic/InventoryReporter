@@ -18,10 +18,11 @@ namespace InventoryReporter2;
 public class RetainerCacheManager : IDisposable
 {
     private readonly IAddonLifecycle addonLifecycle;
-    private readonly IPluginLog      log;
-    private readonly Configuration   config;
+    private readonly IPluginLog log;
+    private readonly Configuration config;
     private readonly InventoryScanner scanner;
-    private readonly HttpReporter     reporter;
+    private readonly HttpReporter reporter;
+    private bool isBatchRefreshActive;
 
     // Both addon names are registered so the handler fires regardless of
     // which layout the game uses (depends on player's bag count / resolution).
@@ -36,21 +37,21 @@ public class RetainerCacheManager : IDisposable
     public event Action? RetainerCached;
 
     public RetainerCacheManager(
-        IAddonLifecycle  addonLifecycle,
-        IPluginLog       log,
-        Configuration    config,
+        IAddonLifecycle addonLifecycle,
+        IPluginLog log,
+        Configuration config,
         InventoryScanner scanner,
-        HttpReporter     reporter)
+        HttpReporter reporter)
     {
         this.addonLifecycle = addonLifecycle;
-        this.log            = log;
-        this.config         = config;
-        this.scanner        = scanner;
-        this.reporter       = reporter;
+        this.log = log;
+        this.config = config;
+        this.scanner = scanner;
+        this.reporter = reporter;
 
-        addonLifecycle.RegisterListener(AddonEvent.PostSetup,   LargeAddon, OnRetainerWindowOpen);
+        addonLifecycle.RegisterListener(AddonEvent.PostSetup, LargeAddon, OnRetainerWindowOpen);
         addonLifecycle.RegisterListener(AddonEvent.PreFinalize, LargeAddon, OnRetainerWindowClose);
-        addonLifecycle.RegisterListener(AddonEvent.PostSetup,   SmallAddon, OnRetainerWindowOpen);
+        addonLifecycle.RegisterListener(AddonEvent.PostSetup, SmallAddon, OnRetainerWindowOpen);
         addonLifecycle.RegisterListener(AddonEvent.PreFinalize, SmallAddon, OnRetainerWindowClose);
     }
 
@@ -102,13 +103,13 @@ public class RetainerCacheManager : IDisposable
                 .Select(b => new CachedBag
                 {
                     BagName = b.BagName,
-                    Items   = b.Items
+                    Items = b.Items
                         .Select(i => new CachedItem
                         {
-                            ItemId    = i.ItemId,
-                            ItemName  = i.ItemName,
-                            Quantity  = i.Quantity,
-                            IsHQ      = i.IsHQ,
+                            ItemId = i.ItemId,
+                            ItemName = i.ItemName,
+                            Quantity = i.Quantity,
+                            IsHQ = i.IsHQ,
                             Condition = i.Condition,
                         })
                         .ToList(),
@@ -119,10 +120,10 @@ public class RetainerCacheManager : IDisposable
 
             config.RetainerCache[_activeRetainerId] = new CachedRetainer
             {
-                RetainerId   = _activeRetainerId,
+                RetainerId = _activeRetainerId,
                 RetainerName = _activeRetainerName,
-                LastUpdated  = DateTime.UtcNow,
-                Bags         = cachedBags,
+                LastUpdated = DateTime.UtcNow,
+                Bags = cachedBags,
             };
 
             config.Save();
@@ -132,7 +133,7 @@ public class RetainerCacheManager : IDisposable
 
             RetainerCached?.Invoke();
 
-            if (config.AutoSendOnRetainerClose)
+            if (config.AutoSendOnRetainerClose && !isBatchRefreshActive)
                 _ = reporter.SendReportAsync();
         }
         catch (Exception ex)
@@ -141,7 +142,7 @@ public class RetainerCacheManager : IDisposable
         }
         finally
         {
-            _activeRetainerId   = 0;
+            _activeRetainerId = 0;
             _activeRetainerName = string.Empty;
         }
     }
@@ -149,11 +150,21 @@ public class RetainerCacheManager : IDisposable
 
     // ── IDisposable ───────────────────────────────────────────────────────────
 
+    public void BeginBatchRefresh()
+    {
+        isBatchRefreshActive = true;
+    }
+
+    public void EndBatchRefresh()
+    {
+        isBatchRefreshActive = false;
+    }
+
     public void Dispose()
     {
-        addonLifecycle.UnregisterListener(AddonEvent.PostSetup,   LargeAddon, OnRetainerWindowOpen);
+        addonLifecycle.UnregisterListener(AddonEvent.PostSetup, LargeAddon, OnRetainerWindowOpen);
         addonLifecycle.UnregisterListener(AddonEvent.PreFinalize, LargeAddon, OnRetainerWindowClose);
-        addonLifecycle.UnregisterListener(AddonEvent.PostSetup,   SmallAddon, OnRetainerWindowOpen);
+        addonLifecycle.UnregisterListener(AddonEvent.PostSetup, SmallAddon, OnRetainerWindowOpen);
         addonLifecycle.UnregisterListener(AddonEvent.PreFinalize, SmallAddon, OnRetainerWindowClose);
     }
 }
