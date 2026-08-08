@@ -9,31 +9,38 @@ namespace InventoryReporter2.Windows;
 
 public class MainWindow : Window, IDisposable
 {
-    private readonly Configuration   config;
-    private readonly HttpReporter     reporter;
+    private readonly Configuration config;
+    private readonly HttpReporter reporter;
     private readonly InventoryScanner scanner;
-    private readonly IPluginLog       log;
+    private readonly AutoRetainerRefreshService autoRetainerRefresh;
+    private readonly IPluginLog log;
 
     // ── Mutable UI state ──────────────────────────────────────────────────────
-    private string urlBuffer    = string.Empty;
+    private string urlBuffer = string.Empty;
     private string apiKeyBuffer = string.Empty;
-    private bool   showApiKey   = false;
-    private bool   showPreview  = false;
+    private bool showApiKey = false;
+    private bool showPreview = false;
 
     // ── Theme ─────────────────────────────────────────────────────────────────
-    private static readonly Vector4 ColHeader  = new(0.38f, 0.73f, 1.00f, 1f);
+    private static readonly Vector4 ColHeader = new(0.38f, 0.73f, 1.00f, 1f);
     private static readonly Vector4 ColSuccess = new(0.45f, 0.90f, 0.55f, 1f);
-    private static readonly Vector4 ColError   = new(1.00f, 0.40f, 0.40f, 1f);
-    private static readonly Vector4 ColMuted   = new(0.60f, 0.60f, 0.60f, 1f);
+    private static readonly Vector4 ColError = new(1.00f, 0.40f, 0.40f, 1f);
+    private static readonly Vector4 ColMuted = new(0.60f, 0.60f, 0.60f, 1f);
 
-    public MainWindow(Configuration config, HttpReporter reporter, InventoryScanner scanner, IPluginLog log)
+    public MainWindow(
+        Configuration config,
+        HttpReporter reporter,
+        InventoryScanner scanner,
+        AutoRetainerRefreshService autoRetainerRefresh,
+        IPluginLog log)
         : base("Inventory Reporter 2##InventoryReporter2MainWindow",
                ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse)
     {
-        this.config   = config;
+        this.config = config;
         this.reporter = reporter;
-        this.scanner  = scanner;
-        this.log      = log;
+        this.scanner = scanner;
+        this.autoRetainerRefresh = autoRetainerRefresh;
+        this.log = log;
 
         SizeConstraints = new WindowSizeConstraints
         {
@@ -41,7 +48,7 @@ public class MainWindow : Window, IDisposable
             MaximumSize = new Vector2(float.MaxValue, float.MaxValue),
         };
 
-        urlBuffer    = config.ServerUrl;
+        urlBuffer = config.ServerUrl;
         apiKeyBuffer = config.ApiKey;
     }
 
@@ -103,10 +110,10 @@ public class MainWindow : Window, IDisposable
         ImGui.TextColored(ColMuted, "Player inventory (4 bags) is always included.");
         ImGui.Spacing();
 
-        DrawCheckbox("Armoury Chest",              v => config.IncludeArmoury = v, config.IncludeArmoury);
-        DrawCheckbox("Crystal bag",                v => config.IncludeCrystals = v, config.IncludeCrystals);
-        DrawCheckbox("Equipped gear",              v => config.IncludeEquipped = v, config.IncludeEquipped);
-        DrawCheckbox("Saddlebag (if subscribed)",  v => config.IncludeSaddlebag = v, config.IncludeSaddlebag);
+        DrawCheckbox("Armoury Chest", v => config.IncludeArmoury = v, config.IncludeArmoury);
+        DrawCheckbox("Crystal bag", v => config.IncludeCrystals = v, config.IncludeCrystals);
+        DrawCheckbox("Equipped gear", v => config.IncludeEquipped = v, config.IncludeEquipped);
+        DrawCheckbox("Saddlebag (if subscribed)", v => config.IncludeSaddlebag = v, config.IncludeSaddlebag);
         ImGui.Spacing();
         DrawCheckbox("Resolve item names via Lumina", v => config.IncludeItemNames = v, config.IncludeItemNames);
         DrawCheckbox("Include character name & world", v => config.IncludeCharacterInfo = v, config.IncludeCharacterInfo);
@@ -116,12 +123,14 @@ public class MainWindow : Window, IDisposable
     {
         ImGui.TextColored(ColHeader, "Behaviour");
         ImGui.Separator();
-        
+
         DrawCheckbox("Auto-send on retainer window close", v => config.AutoSendOnRetainerClose = v, config.AutoSendOnRetainerClose);
         ImGui.TextColored(ColMuted,
             "  Retainer data is cached each time you close a retainer window.\n" +
             "  Visit each retainer once per session to populate the cache.");
 
+        ImGui.Spacing();
+        DrawAutoRetainerRefreshControls();
         ImGui.Spacing();
 
         DrawCheckbox("Enable automatic periodic sending", v =>
@@ -172,6 +181,33 @@ public class MainWindow : Window, IDisposable
                 config.Save();
             }
         }
+    }
+
+    private void DrawAutoRetainerRefreshControls()
+    {
+        var autoRetainerAvailable = autoRetainerRefresh.IsAvailable;
+        var refreshBusy = autoRetainerRefresh.IsRefreshing || autoRetainerRefresh.IsStartQueued;
+
+        ImGui.TextColored(ColMuted, "AutoRetainer cache refresh:");
+
+        if (!autoRetainerAvailable || refreshBusy)
+            ImGui.BeginDisabled();
+
+        if (ImGui.Button("Refresh with AutoRetainer"))
+            autoRetainerRefresh.StartFullRefresh();
+
+        if (!autoRetainerAvailable || refreshBusy)
+            ImGui.EndDisabled();
+
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Open a summoning bell's retainer list, then refresh all retainer caches and send one report.");
+
+        if (!autoRetainerAvailable)
+            ImGui.TextColored(ColMuted, "AutoRetainer is not available.");
+        else if (refreshBusy)
+            ImGui.TextColored(ColMuted, $"{autoRetainerRefresh.LastStatus} ({autoRetainerRefresh.ProcessedRetainers}/{autoRetainerRefresh.ExpectedRetainers})");
+        else
+            ImGui.TextColored(ColMuted, autoRetainerRefresh.LastStatus);
     }
 
     private void DrawActionsSection()
